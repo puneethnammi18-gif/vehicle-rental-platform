@@ -9,12 +9,154 @@ service cloud.firestore {
       return signedIn() && request.auth.token.email_verified == true;
     }
 
+    function userProfilePath(userId) {
+      return /databases/$(database)/documents/userProfiles/$(userId);
+    }
+
+    function vehiclePath(vehicleId) {
+      return /databases/$(database)/documents/vehicles/$(vehicleId);
+    }
+
+    function isProvider() {
+      return verifiedEmail()
+        && exists(userProfilePath(request.auth.uid))
+        && get(userProfilePath(request.auth.uid)).data.role == 'provider';
+    }
+
+    function isCustomer() {
+      return verifiedEmail()
+        && exists(userProfilePath(request.auth.uid))
+        && get(userProfilePath(request.auth.uid)).data.role == 'customer';
+    }
+
+    function validVehicle(data) {
+      return data.keys().hasAll([
+          'ownerUid', 'name', 'kind', 'year', 'pricePerDay', 'city',
+          'pickupPoint', 'latitude', 'longitude', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid', 'name', 'kind', 'year', 'pricePerDay', 'city',
+          'pickupPoint', 'latitude', 'longitude', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
+        ])
+        && data.ownerUid == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 70
+        && data.kind in ['Cars', 'Bikes', 'Scooters', 'Cycles']
+        && data.year is int && data.year >= 1980 && data.year <= 2035
+        && data.pricePerDay is int && data.pricePerDay > 0 && data.pricePerDay <= 100000
+        && data.city is string && data.city.size() > 0 && data.city.size() <= 80
+        && data.pickupPoint is string && data.pickupPoint.size() > 0 && data.pickupPoint.size() <= 160
+        && data.latitude is number && data.latitude >= -90 && data.latitude <= 90
+        && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
+        && data.imageUrl is string && data.imageUrl.size() <= 1000
+        && (data.imageUrl == '' || data.imageUrl.matches('^https://.*'))
+        && data.features is list && data.features.size() <= 8
+        && data.providerName is string && data.providerName.size() > 0 && data.providerName.size() <= 80
+        && data.status == 'available'
+        && data.createdAt == request.time;
+    }
+
+    function validBooking(data) {
+      return data.keys().hasAll([
+          'customerUid', 'providerUid', 'vehicleId', 'vehicleName', 'pickupPoint',
+          'city', 'startAt', 'endAt', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'customerUid', 'providerUid', 'vehicleId', 'vehicleName', 'pickupPoint',
+          'city', 'startAt', 'endAt', 'status', 'createdAt'
+        ])
+        && data.customerUid == request.auth.uid
+        && data.customerUid != data.providerUid
+        && data.providerUid is string
+        && data.vehicleId is string
+        && data.status == 'requested'
+        && data.startAt is timestamp && data.startAt > request.time
+        && data.endAt is timestamp && data.endAt > data.startAt
+        && data.createdAt == request.time
+        && exists(vehiclePath(data.vehicleId))
+        && get(vehiclePath(data.vehicleId)).data.status == 'available'
+        && get(vehiclePath(data.vehicleId)).data.ownerUid == data.providerUid
+        && get(vehiclePath(data.vehicleId)).data.name == data.vehicleName
+        && get(vehiclePath(data.vehicleId)).data.pickupPoint == data.pickupPoint
+        && get(vehiclePath(data.vehicleId)).data.city == data.city;
+    }
+
     function profilePath(userId) {
       return /databases/$(database)/documents/referralProfiles/$(userId);
     }
 
     function referralPath(userId) {
       return /databases/$(database)/documents/referrals/$(userId);
+    }
+
+    match /userProfiles/{userId} {
+      // Role profiles are private to the signed-in owner.
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['role', 'businessName', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['role', 'businessName', 'createdAt'])
+        && request.resource.data.role in ['customer', 'provider']
+        && request.resource.data.businessName is string
+        && request.resource.data.businessName.size() <= 80
+        && request.resource.data.createdAt == request.time;
+
+      // Existing customers may opt in to provider tools; no other role edits are allowed.
+      allow update: if verifiedEmail()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role == 'provider'
+        && request.resource.data.businessName is string
+        && request.resource.data.businessName.size() <= 80
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'businessName']);
+
+      allow delete: if false;
+    }
+
+    match /vehicles/{vehicleId} {
+      // Public marketplace queries must include status == 'available'.
+      // Providers may also read all their own listings, including paused ones.
+      allow get, list: if resource.data.status == 'available'
+        || (isProvider() && resource.data.ownerUid == request.auth.uid);
+
+      allow create: if isProvider() && validVehicle(request.resource.data);
+
+      // A provider may only pause or resume their own listing.
+      allow update: if isProvider()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['available', 'unavailable']
+        && request.resource.data.status != resource.data.status;
+
+      // Providers pause a listing instead of deleting its history.
+      allow delete: if false;
+    }
+
+    match /bookingRequests/{requestId} {
+      // Customers and the provider assigned to a request can read it.
+      allow get, list: if verifiedEmail()
+        && (resource.data.customerUid == request.auth.uid
+            || resource.data.providerUid == request.auth.uid);
+
+      allow create: if isCustomer() && validBooking(request.resource.data);
+
+      // Customer can cancel a pending request; its provider can accept or decline it.
+      allow update: if verifiedEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && (
+          (resource.data.customerUid == request.auth.uid
+            && resource.data.status == 'requested'
+            && request.resource.data.status == 'cancelled')
+          ||
+          (resource.data.providerUid == request.auth.uid
+            && isProvider()
+            && resource.data.status == 'requested'
+            && request.resource.data.status in ['accepted', 'declined'])
+        );
+
+      allow delete: if false;
     }
 
     match /referralProfiles/{userId} {
