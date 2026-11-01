@@ -5,6 +5,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
     function profilePath(userId) {
       return /databases/$(database)/documents/referralProfiles/$(userId);
     }
@@ -28,7 +32,7 @@ service cloud.firestore {
 
       // A referral count can increase only in the same transaction that adds
       // this authenticated invitee's one-time referral record.
-      allow update: if signedIn()
+      allow update: if verifiedEmail()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referralCount'])
         && request.resource.data.referralCount == resource.data.referralCount + 1
         && request.resource.data.referralCount <= 3
@@ -50,7 +54,7 @@ service cloud.firestore {
 
       // Each authenticated account can be referred only once. The count update
       // must happen atomically, within the referrer's 45-day window, and below 3.
-      allow create: if signedIn()
+      allow create: if verifiedEmail()
         && request.auth.uid == referredUserId
         && request.resource.data.keys().hasAll(['referrerUid', 'createdAt'])
         && request.resource.data.keys().hasOnly(['referrerUid', 'createdAt'])
