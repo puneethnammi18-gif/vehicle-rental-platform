@@ -734,7 +734,7 @@
         currentUserProfile=profileSnap.data();currentAccountRole=currentUserProfile.role==='provider'?'provider':'customer';
         providerPanel.style.display=currentAccountRole==='provider'?'block':'none';customerPanel.style.display=currentAccountRole==='customer'?'block':'none';document.getElementById('bottomGuestCta').style.display='none';
         if(currentAccountRole==='provider'){
-          window.setTimeout(()=>{initializeProviderMap();if(providerMap)providerMap.invalidateSize()},120);
+          window.setTimeout(()=>initializeProviderMap(),120);
           const ownQuery=firestoreApi.query(firestoreApi.collection(firestoreDb,'vehicles'),firestoreApi.where('ownerUid','==',user.uid));
           providerVehiclesUnsubscribe=firestoreApi.onSnapshot(ownQuery,snapshot=>{ownedVehicles=snapshot.docs.map(doc=>Object.assign({id:doc.id},doc.data()));renderProviderVehicles()},error=>setNotice('vehicleFormNotice','Could not load your listings. Check Firestore permissions.',true));
           const requestsQuery=firestoreApi.query(firestoreApi.collection(firestoreDb,'bookingRequests'),firestoreApi.where('providerUid','==',user.uid));
