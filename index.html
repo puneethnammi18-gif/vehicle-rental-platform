@@ -186,6 +186,7 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
     }
     function listenToMarketplace(){
       if(!firestoreApi||!firestoreDb)return;
+      if(typeof marketplaceUnsubscribe==='function')marketplaceUnsubscribe();
       const availableQuery=firestoreApi.query(firestoreApi.collection(firestoreDb,'vehicles'),firestoreApi.where('status','==','available'));
       marketplaceUnsubscribe=firestoreApi.onSnapshot(availableQuery,snapshot=>{
         providerVehicles=snapshot.docs.map(doc=>{const data=doc.data();return Object.assign({},data,{id:doc.id,demo:false,price:data.pricePerDay,tag:'Local listing',specs:Array.isArray(data.features)?data.features:[],image:data.imageUrl||'',alt:data.name})});
@@ -251,7 +252,20 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
     renderCars();
     document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(item=>item.classList.remove('active'));button.classList.add('active');renderCars(button.dataset.filter)}));
     const modal=document.getElementById('authModal');let mode='signin';
-    function setMode(next){mode=next;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===mode));document.getElementById('nameField').style.display=mode==='signup'?'block':'none';document.getElementById('fullName').required=mode==='signup';document.getElementById('modalTitle').textContent=mode==='signup'?'Create your account':'Welcome to Safe Rides';document.getElementById('modalDesc').textContent=mode==='signup'?'Join Safe Rides and find your next favorite drive.':'Sign in to manage your bookings and hit the road.';document.getElementById('submitAuth').textContent=mode==='signup'?'Create account':'Sign in';document.getElementById('password').autocomplete=mode==='signup'?'new-password':'current-password';document.getElementById('notice').classList.remove('show')}
+    function setMode(next){
+      mode=next;
+      document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===mode));
+      document.getElementById('nameField').style.display=mode==='signup'?'block':'none';
+      document.getElementById('fullName').required=mode==='signup';
+      document.getElementById('roleField').style.display=mode==='signup'?'block':'none';
+      if(mode==='signup')document.getElementById('accountRole').value='customer';
+      document.getElementById('businessNameField').style.display=mode==='signup'&&document.getElementById('accountRole').value==='provider'?'block':'none';
+      document.getElementById('modalTitle').textContent=mode==='signup'?'Create your account':'Welcome to Safe Rides';
+      document.getElementById('modalDesc').textContent=mode==='signup'?'Join Safe Rides and find your next favorite drive.':'Sign in to manage your bookings and hit the road.';
+      document.getElementById('submitAuth').textContent=mode==='signup'?'Create account':'Sign in';
+      document.getElementById('password').autocomplete=mode==='signup'?'new-password':'current-password';
+      document.getElementById('notice').classList.remove('show')
+    }
     function openAuth(next='signin'){setMode(next);modal.classList.add('open');document.body.style.overflow='hidden';setTimeout(()=>document.getElementById('email').focus(),80)}function closeAuth(){modal.classList.remove('open');document.body.style.overflow=''}
     document.querySelectorAll('[data-auth]').forEach(b=>b.addEventListener('click',()=>openAuth(b.dataset.auth)));document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.tab)));document.getElementById('closeModal').addEventListener('click',closeAuth);modal.addEventListener('click',e=>{if(e.target===modal)closeAuth()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAuth()});
     function showAuthNotice(message,isError=false){const n=document.getElementById('notice');n.textContent=message;n.style.borderColor=isError?'#7a3945':'#315e50';n.style.background=isError?'#28141a':'#10241e';n.style.color=isError?'#ffc2cc':'#a5ebcb';n.classList.add('show')}
@@ -268,6 +282,7 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
       'auth/unauthorized-domain':'This website is not authorized in Firebase yet. Add its domain to Authentication settings.'
     }[error?.code]||'We could not complete that request. Check your details and try again.');
     let firebaseAuth=null,firebaseApi=null,firestoreDb=null,firestoreApi=null;
+    let pendingAccountRole='customer',pendingBusinessName='';
     const REFERRAL_DAYS=45,REFERRAL_LIMIT=3,REFERRAL_WINDOW_MS=REFERRAL_DAYS*24*60*60*1000;
     const referralSource=(new URLSearchParams(window.location.search).get('ref')||'').trim();
     let referralUnsubscribe=null,referralCountdownTimer=null,referralPanelUserId=null;
@@ -299,7 +314,19 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
           document.getElementById('resendVerification').style.display=needsVerification?'block':'none';
           if(!needsVerification)document.getElementById('verificationStatus').style.display='none';
           document.getElementById('signOutNav').style.display=signedIn?'inline-flex':'none';
-          if(signedIn){if(currentUser.emailVerified)closeAuth();void refreshReferralPanel(currentUser)}else hideReferralPanel();
+          if(signedIn){
+            if(currentUser.emailVerified)closeAuth();
+            void refreshReferralPanel(currentUser);
+            try{
+              await ensureUserProfile(currentUser,pendingAccountRole,pendingBusinessName);
+              await loadAccountExperience(currentUser);
+              listenToMarketplace();
+            }catch(error){console.warn('Account features could not load:',error.code||error.message)}
+          }else{
+            hideReferralPanel();
+            await loadAccountExperience(null);
+            stopMarketplaceListeners();
+          }
         });
         return true;
       }catch(error){console.error('Firebase Auth could not initialize:',error.code||error.message);return false}
@@ -420,6 +447,7 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
       catch(error){input.focus();input.select();showReferralStatus('Select the link and copy it to share with a friend.')}
     });
     const firebaseReady=initializeFirebaseAuth();
+    document.getElementById('accountRole').addEventListener('change',event=>{document.getElementById('businessNameField').style.display=event.target.value==='provider'?'block':'none'});
     document.getElementById('authForm').addEventListener('submit',async e=>{
       e.preventDefault();
       const ready=await firebaseReady;
@@ -428,9 +456,15 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
       const password=document.getElementById('password').value;
       try{
         if(mode==='signup'){
+          pendingAccountRole=document.getElementById('accountRole').value==='provider'?'provider':'customer';
+          pendingBusinessName=pendingAccountRole==='provider'?document.getElementById('businessName').value.trim():'';
+          const selectedRole=pendingAccountRole;
+          const businessName=pendingBusinessName;
           const result=await firebaseApi.createUserWithEmailAndPassword(firebaseAuth,email,password);
           const displayName=document.getElementById('fullName').value.trim();
           if(displayName)await firebaseApi.updateProfile(result.user,{displayName});
+          try{await ensureUserProfile(result.user,selectedRole,businessName)}catch(profileError){console.warn('Account profile setup failed:',profileError.code||profileError.message)}
+          pendingAccountRole='customer';pendingBusinessName='';
           const verificationSent=await sendVerificationEmail(result.user,false);
           try{await ensureReferralProfile(result.user);await recordNewReferral(result.user)}catch(referralError){console.error('Referral setup failed:',referralError.code||referralError.message)}
           showAuthNotice(verificationSent?`Account created. We sent a verification link to ${email}. Verify it before referrals can count.`:'Account created, but we could not send the verification email. Choose Resend verification email to try again.',!verificationSent);
@@ -476,8 +510,77 @@ function prettyDate(value){if(!value)return '';const date=value.toDate?value.toD
     document.getElementById('resendVerification').addEventListener('click',()=>void sendVerificationEmail(firebaseAuth&&firebaseAuth.currentUser));
     document.getElementById('verifyEmailNav').addEventListener('click',()=>void sendVerificationEmail(firebaseAuth&&firebaseAuth.currentUser,false));
     document.getElementById('signOutNav').addEventListener('click',async()=>{if(firebaseAuth)try{await firebaseApi.signOut(firebaseAuth)}catch(error){console.error('Sign out failed:',error.code||error.message)}});
-    document.getElementById('searchForm').addEventListener('submit',e=>{e.preventDefault();document.getElementById('cars').scrollIntoView({behavior:'smooth'});document.querySelector('.section-kicker').textContent='Available rides';});
+    
+    document.getElementById('providerUpgradeForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const user=firebaseAuth&&firebaseAuth.currentUser;
+      const noticeId='providerUpgradeNotice';
+      if(!user||!user.emailVerified){setNotice(noticeId,'Verify your email before becoming a provider.',true);return}
+      const businessName=document.getElementById('upgradeBusinessName').value.trim();
+      try{
+        await firestoreApi.updateDoc(firestoreApi.doc(firestoreDb,'userProfiles',user.uid),{role:'provider',businessName});
+        currentUserProfile=Object.assign({},currentUserProfile,{role:'provider',businessName});
+        currentAccountRole='provider';
+        await loadAccountExperience(user);
+        setNotice(noticeId,'Provider tools are ready. Add your first vehicle above.',false);
+      }catch(error){setNotice(noticeId,'Could not update this account. Verify your email and check Firestore rules.',true);console.warn('Provider upgrade failed:',error.code||error.message)}
+    });
+    document.getElementById('vehicleForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const user=firebaseAuth&&firebaseAuth.currentUser;
+      if(!user||!user.emailVerified){setNotice('vehicleFormNotice','Verify your email before publishing a vehicle.',true);return}
+      if(currentAccountRole!=='provider'){setNotice('vehicleFormNotice','Switch to a provider account before publishing a vehicle.',true);return}
+      const latitude=Number(document.getElementById('vehicleLatitude').value);
+      const longitude=Number(document.getElementById('vehicleLongitude').value);
+      const year=Number.parseInt(document.getElementById('vehicleYear').value,10);
+      const pricePerDay=Number.parseInt(document.getElementById('vehiclePrice').value,10);
+      if(!Number.isFinite(latitude)||!Number.isFinite(longitude)){setNotice('vehicleFormNotice','Choose the vehicle pickup point on the map first.',true);return}
+      const name=document.getElementById('vehicleName').value.trim();
+      const kind=document.getElementById('vehicleKind').value;
+      const city=document.getElementById('vehicleCity').value.trim();
+      const pickupPoint=document.getElementById('vehiclePickupPoint').value.trim();
+      const imageUrl=document.getElementById('vehicleImageUrl').value.trim();
+      const features=document.getElementById('vehicleFeatures').value.split(',').map(item=>item.trim()).filter(Boolean).slice(0,8);
+      const providerName=String(currentUserProfile?.businessName||user.displayName||user.email?.split('@')[0]||'Local provider').trim().slice(0,80);
+      if(!pickupPoint){setNotice('vehicleFormNotice','Add a pickup landmark or address.',true);return}
+      if(imageUrl&&!/^https:\/\//i.test(imageUrl)){setNotice('vehicleFormNotice','Vehicle photo links must start with https://.',true);return}
+      try{
+        await firestoreApi.addDoc(firestoreApi.collection(firestoreDb,'vehicles'),{
+          ownerUid:user.uid,name,kind,year,pricePerDay,city,pickupPoint,latitude,longitude,
+          imageUrl,features,providerName,status:'available',createdAt:firestoreApi.serverTimestamp()
+        });
+        event.currentTarget.reset();
+        document.getElementById('vehicleYear').value=String(new Date().getFullYear());
+        document.getElementById('providerMapStatus').textContent='Select the next vehicle pickup point on the map.';
+        setNotice('vehicleFormNotice','Your vehicle is now listed and visible to renters.',false);
+      }catch(error){setNotice('vehicleFormNotice','Could not publish the listing. Check every field, verify your email, and review Firestore rules.',true);console.warn('Vehicle listing failed:',error.code||error.message)}
+    });
+    document.getElementById('bookingRequestForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const user=firebaseAuth&&firebaseAuth.currentUser;
+      if(!user){closeVehicleDetails();openAuth('signin');return}
+      if(!user.emailVerified){setNotice('bookingNotice','Verify your email before requesting a booking.',true);return}
+      if(currentAccountRole!=='customer'){setNotice('bookingNotice','Customer accounts can send rental requests. Switch to a customer account to continue.',true);return}
+      if(!selectedVehicle||selectedVehicle.demo){setNotice('bookingNotice','Choose a provider-listed vehicle to send a real request.',true);return}
+      const startValue=document.getElementById('requestPickupDate').value;
+      const endValue=document.getElementById('requestReturnDate').value;
+      const startAt=new Date(startValue+'T00:00:00');
+      const endAt=new Date(endValue+'T00:00:00');
+      if(!startValue||!endValue||!Number.isFinite(startAt.getTime())||!Number.isFinite(endAt.getTime())||startAt.getTime()<=Date.now()||endAt<=startAt){setNotice('bookingNotice','Choose a future pickup date and a later return date.',true);return}
+      try{
+        await firestoreApi.addDoc(firestoreApi.collection(firestoreDb,'bookingRequests'),{
+          customerUid:user.uid,providerUid:selectedVehicle.ownerUid,vehicleId:selectedVehicle.id,
+          vehicleName:selectedVehicle.name,pickupPoint:selectedVehicle.pickupPoint,city:selectedVehicle.city,
+          startAt,endAt,status:'requested',createdAt:firestoreApi.serverTimestamp()
+        });
+        setNotice('bookingNotice','Request sent. The provider will review it in their dashboard.',false);
+        window.setTimeout(closeVehicleDetails,1100);
+      }catch(error){setNotice('bookingNotice','Could not send this request. Verify your account and check Firestore rules.',true);console.warn('Booking request failed:',error.code||error.message)}
+    });
+
+    document.getElementById('searchForm').addEventListener('submit',e=>{e.preventDefault();searchLocation=document.getElementById('location').value.trim();renderCars();document.getElementById('cars').scrollIntoView({behavior:'smooth'});document.querySelector('.section-kicker').textContent='Available rides';});
     const today=new Date();const dateString=d=>{const t=new Date(d.getTime()-d.getTimezoneOffset()*60000);return t.toISOString().slice(0,10)};const tomorrow=new Date(today);tomorrow.setDate(today.getDate()+1);const after=new Date(today);after.setDate(today.getDate()+2);document.getElementById('pickup').value=dateString(tomorrow);document.getElementById('dropoff').value=dateString(after);document.getElementById('pickup').min=dateString(today);document.getElementById('dropoff').min=dateString(tomorrow);
+    initializeLocationMaps();
   
 </script>
 </body>
