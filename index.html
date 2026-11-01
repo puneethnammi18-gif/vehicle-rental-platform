@@ -429,7 +429,8 @@
       document.getElementById('requestPickupDate').min=dateString(now);document.getElementById('requestReturnDate').min=dateString(first);
       modal.classList.add('open');document.body.style.overflow='hidden'
     }
-    function stopMarketplaceListeners(){[marketplaceUnsubscribe,providerVehiclesUnsubscribe,providerBookingsUnsubscribe,customerBookingsUnsubscribe].forEach(stop=>{if(typeof stop==='function')stop()});marketplaceUnsubscribe=providerVehiclesUnsubscribe=providerBookingsUnsubscribe=customerBookingsUnsubscribe=null}
+    function stopAccountListeners(){[providerVehiclesUnsubscribe,providerBookingsUnsubscribe,customerBookingsUnsubscribe].forEach(stop=>{if(typeof stop==='function')stop()});providerVehiclesUnsubscribe=providerBookingsUnsubscribe=customerBookingsUnsubscribe=null}
+    function stopMarketplaceListeners(){if(typeof marketplaceUnsubscribe==='function')marketplaceUnsubscribe();marketplaceUnsubscribe=null;stopAccountListeners()}
     function renderProviderVehicles(){
       const root=document.getElementById('providerVehicleList');
       if(!ownedVehicles.length){root.innerHTML='<p>You have not listed a vehicle yet.</p>';return}
@@ -706,7 +707,7 @@
       return Object.assign({},profile,{createdAt:new Date()})
     }
     async function loadAccountExperience(user){
-      stopMarketplaceListeners();currentAuthUser=user;ownedVehicles=[];providerBookings=[];customerBookings=[];
+      stopAccountListeners();currentAuthUser=user;ownedVehicles=[];providerBookings=[];customerBookings=[];
       const providerPanel=document.getElementById('providerPortal'),customerPanel=document.getElementById('customerActivity');
       if(!user){currentAccountRole='customer';currentUserProfile=null;providerPanel.style.display='none';customerPanel.style.display='none';hideReferralPanel();return}
       try{
@@ -733,7 +734,7 @@
     async function changeBookingStatus(requestId,status){
       const user=firebaseAuth&&firebaseAuth.currentUser;if(!user||!user.emailVerified){setNotice('bookingNotice','Verify your email before managing booking requests.',true);return}
       try{await firestoreApi.updateDoc(firestoreApi.doc(firestoreDb,'bookingRequests',requestId),{status:status})}
-      catch(error){setNotice('bookingNotice','Could not update this request. Check your role and Firestore rules.',true);console.warn('Booking update failed:',error.code||error.message)}
+      catch(error){const target=currentAccountRole==='provider'?'providerRequestList':'customerBookingList';document.getElementById(target).insertAdjacentHTML('afterbegin','<p class="portal-error">Could not update this request. Check your sign-in and Firestore permissions.</p>');console.warn('Booking update failed:',error.code||error.message)}
     }
     function renderCars(filter){if(typeof filter==='string')activeFilter=filter;const allVehicles=providerVehicles.concat(sampleVehicles());const matching=allVehicles.filter(vehicle=>(activeFilter==='all'||vehicle.kind===activeFilter)&&(!searchLocation||String(vehicle.city+' '+vehicle.pickupPoint).toLowerCase().includes(searchLocation.toLowerCase())));if(!matching.length){grid.innerHTML='<div class="empty-state">No vehicles match this location and category yet. Try another city or check back for provider listings.</div>';return}grid.innerHTML=matching.map((vehicle,index)=>{const specs=Array.isArray(vehicle.specs)?vehicle.specs:[];const place=vehicle.demo?'Sample pickup · '+vehicle.city:(vehicle.providerName||'Local provider')+' · '+vehicle.city;return '<article class="car-card"><div class="car-img"><span class="tag">'+escapeHtml(vehicle.tag)+'</span><img src="'+escapeHtml(safeImageFor(vehicle))+'" alt="'+escapeHtml(vehicle.alt||vehicle.name)+'" loading="lazy"></div><div class="card-content"><div class="card-title"><h3>'+escapeHtml(vehicle.name)+'</h3><div class="price">$'+escapeHtml(Number(vehicle.price||0).toFixed(0))+'<small style="color:var(--muted);font-size:10px;font-weight:500"> / day</small></div></div><div class="vehicle-location">📍 '+escapeHtml(place)+'</div><div class="specs">'+specs.map(item=>'<span>'+escapeHtml(item)+'</span>').join('')+'</div><div class="card-foot"><span class="rating-small"><b>'+(vehicle.demo?'Demo fleet':'New listing')+'</b> &nbsp;·&nbsp; '+escapeHtml(vehicle.year)+'</span><button class="btn btn-blue book-btn" type="button" data-vehicle-index="'+index+'">Book now</button></div></div></article>'}).join('');document.querySelectorAll('.book-btn').forEach(button=>button.addEventListener('click',()=>openVehicleDetails(matching[Number(button.dataset.vehicleIndex)])))}
     renderCars();
