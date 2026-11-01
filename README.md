@@ -2,17 +2,15 @@
 
 Static vehicle-rental website for a CSE326 assignment, hosted on GitHub Pages.
 
-## Connect real accounts with Firebase Authentication
+## Firebase Authentication
 
-The site is wired for email/password registration, email/password sign-in, password reset, Google sign-in, and sign-out. It needs a Firebase web app before those features can create or authenticate users.
+The Safe Rides web app is registered in the Firebase project **Safe Rides Vehicle Rental**, and its public web app config is connected in `firebase-config.js`.
 
-1. Create a Firebase project at https://console.firebase.google.com/ and register a **Web app**.
-2. In **Authentication → Sign-in method**, enable **Email/Password** and **Google**.
-3. In **Authentication → Settings → Authorized domains**, add `puneethnammi18-gif.github.io`.
-4. Copy the web app config values from **Project settings → Your apps** into `firebase-config.js` (`apiKey`, `authDomain`, `projectId`, and `appId`).
-5. Commit the updated `firebase-config.js` to the GitHub repository. GitHub Pages will redeploy automatically.
+To finish account sign-in, in the Firebase console:
 
-The web app config is public client configuration, not a private service-account key. Never put a service-account JSON file or private key in this website repository.
+1. Open **Authentication → Sign-in method** and enable **Email/Password** and **Google**.
+2. Open **Authentication → Settings → Authorized domains** and add `puneethnammi18-gif.github.io`.
 
-Until the Firebase project config is added and providers are enabled, the account buttons show a setup message. Vehicle photos are loaded from Unsplash and need an internet connection.
+The website supports email/password registration and sign-in, password reset, Google sign-in, and sign-out. The Firebase web app config is public client configuration, not a private service-account key. Never put a service-account JSON file or private key in this website repository.
 
+Vehicle photos are loaded from Unsplash and need an internet connection.
