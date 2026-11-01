@@ -1,9 +1,7 @@
 // Firebase web app settings are public client configuration, not a private service key.
-// Replace these values with the config from Firebase Console > Project settings > Your apps.
 window.SAFE_RIDES_FIREBASE_CONFIG = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_PROJECT.firebaseapp.com",
-  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-  appId: "REPLACE_WITH_YOUR_APP_ID"
+  apiKey: "AIzaSyCzW4Dr12lQ9GPbVQ8-AyVA2rpoJXF1NY0",
+  authDomain: "safe-rides-vehicle-rental.firebaseapp.com",
+  projectId: "safe-rides-vehicle-rental",
+  appId: "1:835364343057:web:769cc68a335e989d9590b0"
 };
-
