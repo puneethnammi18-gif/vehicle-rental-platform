@@ -134,7 +134,7 @@
     function formatRupees(value){const amount=Number(value||0);return '₹'+amount.toLocaleString('en-IN',{maximumFractionDigits:0})}
     function safeImageFor(vehicle){const candidate=String(vehicle.image||'');return /^https:\/\//i.test(candidate)?candidate:(cars.find(item=>item.kind===vehicle.kind)||cars[0]).image}
     function sampleVehicles(){return cars.map((vehicle,index)=>Object.assign({},vehicle,{demo:true,city:'Bengaluru',pickupPoint:samplePickupPoints[index],providerName:'Safe Rides sample fleet',latitude:sampleCoordinates[index][0],longitude:sampleCoordinates[index][1]}))}
-    function isOwnListing(vehicle){const uid=(currentAuthUser&&currentAuthUser.uid)||(firebaseAuth&&firebaseAuth.currentUser&&firebaseAuth.currentUser.uid);return Boolean(uid&&vehicle&&vehicle.ownerUid===uid)}
+    function isOwnListing(vehicle){const uid=currentAuthUser&&currentAuthUser.uid;return Boolean(uid&&vehicle&&vehicle.ownerUid===uid)}
     function setNotice(id,message,isError){const node=document.getElementById(id);if(!node)return;node.textContent=message;node.style.borderColor=isError?'#7a3945':'#315e50';node.style.background=isError?'#28141a':'#10241e';node.style.color=isError?'#ffc2cc':'#a5ebcb';node.classList.add('show')}
     function closeVehicleDetails(){document.getElementById('vehicleModal').classList.remove('open');document.body.style.overflow=''}
     function openVehicleDetails(vehicle){
