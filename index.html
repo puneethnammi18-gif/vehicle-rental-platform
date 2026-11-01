@@ -41,7 +41,7 @@
   </style>
 </head>
 <body>
-  <header><div class="wrap nav"><a class="brand" href="#home"><span class="brand-mark">↗</span><span>safe<em>rides</em></span></a><nav class="links"><a href="#cars">Explore cars</a><a href="#how">How it works</a><a href="#about">About us</a></nav><div class="nav-actions" id="navActions"><button class="btn" data-auth="signin" id="signInNav">Sign in</button><button class="btn btn-primary" data-auth="signup" id="signUpNav">Create account</button><span id="authUser" style="display:none;color:#c8d5e8;font-size:12px"></span><button class="btn" id="signOutNav" style="display:none">Sign out</button></div></div></header>
+  <header><div class="wrap nav"><a class="brand" href="#home"><span class="brand-mark">↗</span><span>safe<em>rides</em></span></a><nav class="links"><a href="#cars">Explore cars</a><a href="#how">How it works</a><a href="#about">About us</a></nav><div class="nav-actions" id="navActions"><button class="btn" data-auth="signin" id="signInNav">Sign in</button><button class="btn btn-primary" data-auth="signup" id="signUpNav">Create account</button><span id="authUser" style="display:none;color:#c8d5e8;font-size:12px"></span><button class="btn" id="verifyEmailNav" type="button" style="display:none">Verify email</button><span id="verificationStatus" role="status" aria-live="polite" style="display:none;color:#a9c9ff;font-size:10px"></span><button class="btn" id="signOutNav" style="display:none">Sign out</button></div></div></header>
   <main id="home">
     <section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow"><span class="spark">✦</span> Your next drive starts here</div><h1>Find the right car.<br><span class="accent">Own the road.</span></h1><p class="hero-copy">A better way to rent. Discover great cars near you, book in minutes, and make every journey yours.</p><div class="hero-buttons"><a class="btn btn-blue" href="#cars">Explore cars <span aria-hidden="true">→</span></a><button class="btn" data-auth="signup">Get started</button></div><div class="proof"><div class="avatars"><span class="avatar">S</span><span class="avatar">A</span><span class="avatar">R</span></div><div><span class="rating">★★★★★</span><strong>4.9/5</strong><br>from 2,000+ happy drivers</div></div></div>
       <div class="visual"><div class="visual-top"><span>FEATURED RIDE</span><span class="live">Available now</span></div><div class="car-art"><img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=85" alt="Blue Porsche sports car on a mountain road"></div><div class="visual-bottom"><div><div class="car-name">Porsche 911 Carrera</div><div class="car-type">Luxury coupe · 2024</div></div><div class="price">$189 <small>/ day</small></div></div></div></div></section>
@@ -65,7 +65,7 @@
       </section></div></section>
   </main>
   <footer><div class="wrap footer-row"><a class="brand" href="#home"><span class="brand-mark">↗</span><span>safe<em style="color:var(--blue2)">rides</em></span></a><span>© 2025 Safe Rides. Drive your way.</span><div class="footer-links"><a href="#about">About</a><a href="#how">How it works</a><a href="mailto:hello@saferides.example">Contact</a></div></div></footer>
-  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><button class="close" aria-label="Close" id="closeModal">×</button><h2 id="modalTitle">Welcome to Safe Rides</h2><p class="modal-desc" id="modalDesc">Sign in to manage your bookings and hit the road.</p><div class="tabs"><button class="tab active" data-tab="signin">Sign in</button><button class="tab" data-tab="signup">Create account</button></div><form id="authForm"><div id="nameField" style="display:none"><label class="form-label" for="fullName">Full name</label><input class="form-input" id="fullName" autocomplete="name" placeholder="Your name" /></div><label class="form-label" for="email">Email address</label><input class="form-input" id="email" type="email" autocomplete="email" placeholder="you@example.com" required /><label class="form-label" for="password">Password</label><input class="form-input" id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required /><button class="text-button" type="button" id="resetPassword">Forgot password?</button><button class="btn btn-blue modal-submit" id="submitAuth">Sign in</button><div class="notice" id="notice"></div></form><div class="divider">or continue with</div><button class="google" id="googleBtn"><span class="google-mark">G</span> Continue with Google</button><p class="fine">By continuing, you agree to our Terms of Service and Privacy Policy.</p></div></div>
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><button class="close" aria-label="Close" id="closeModal">×</button><h2 id="modalTitle">Welcome to Safe Rides</h2><p class="modal-desc" id="modalDesc">Sign in to manage your bookings and hit the road.</p><div class="tabs"><button class="tab active" data-tab="signin">Sign in</button><button class="tab" data-tab="signup">Create account</button></div><form id="authForm"><div id="nameField" style="display:none"><label class="form-label" for="fullName">Full name</label><input class="form-input" id="fullName" autocomplete="name" placeholder="Your name" /></div><label class="form-label" for="email">Email address</label><input class="form-input" id="email" type="email" autocomplete="email" placeholder="you@example.com" required /><label class="form-label" for="password">Password</label><input class="form-input" id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required /><button class="text-button" type="button" id="resetPassword">Forgot password?</button><button class="btn btn-blue modal-submit" id="submitAuth">Sign in</button><div class="notice" id="notice"></div><button class="text-button" id="resendVerification" type="button" style="display:none">Resend verification email</button></form><div class="divider">or continue with</div><button class="google" id="googleBtn"><span class="google-mark">G</span> Continue with Google</button><p class="fine">By continuing, you agree to our Terms of Service and Privacy Policy.</p></div></div>
   <script src="./firebase-config.js"></script>
   <script>
     const cars=[
@@ -115,14 +115,22 @@
         const app=appSdk.initializeApp(config);
         firebaseAuth=authSdk.getAuth(app);firebaseApi=authSdk;
         firestoreApi=storeSdk;firestoreDb=storeSdk.getFirestore(app);
-        authSdk.onAuthStateChanged(firebaseAuth,user=>{
-          const signedIn=Boolean(user);
+        authSdk.onAuthStateChanged(firebaseAuth,async user=>{
+          if(user&&!user.emailVerified&&user.providerData.some(info=>info.providerId==='password')){
+            try{await authSdk.reload(user)}catch(error){console.warn('Could not refresh email verification status:',error.code||error.message)}
+          }
+          const currentUser=user&&firebaseAuth.currentUser?firebaseAuth.currentUser:user;
+          const signedIn=Boolean(currentUser);
+          const needsVerification=signedIn&&!currentUser.emailVerified&&currentUser.providerData.some(info=>info.providerId==='password');
           document.getElementById('signInNav').style.display=signedIn?'none':'';
           document.getElementById('signUpNav').style.display=signedIn?'none':'';
           document.getElementById('authUser').style.display=signedIn?'inline':'none';
-          document.getElementById('authUser').textContent=signedIn?`Hi, ${user.displayName||user.email}`:'';
+          document.getElementById('authUser').textContent=signedIn?`Hi, ${currentUser.displayName||currentUser.email}`:'';
+          document.getElementById('verifyEmailNav').style.display=needsVerification?'inline-flex':'none';
+          document.getElementById('resendVerification').style.display=needsVerification?'block':'none';
+          if(!needsVerification)document.getElementById('verificationStatus').style.display='none';
           document.getElementById('signOutNav').style.display=signedIn?'inline-flex':'none';
-          if(signedIn){closeAuth();void refreshReferralPanel(user)}else hideReferralPanel();
+          if(signedIn){if(currentUser.emailVerified)closeAuth();void refreshReferralPanel(currentUser)}else hideReferralPanel();
         });
         return true;
       }catch(error){console.error('Firebase Auth could not initialize:',error.code||error.message);return false}
@@ -141,7 +149,7 @@
       return profile.data();
     }
     async function recordNewReferral(user){
-      if(!referralSource||referralSource===user.uid||!firestoreApi||!firestoreDb)return false;
+      if(!referralSource||referralSource===user.uid||!user.emailVerified||!firestoreApi||!firestoreDb)return false;
       await ensureReferralProfile(user);
       const profileRef=firestoreApi.doc(firestoreDb,'referralProfiles',referralSource);
       const ownReferralRef=firestoreApi.doc(firestoreDb,'referrals',user.uid);
@@ -182,10 +190,11 @@
       shareUrl.hash='';
       document.getElementById('referralLink').value=shareUrl.toString();
       const copyButton=document.getElementById('copyReferralLink');
-      copyButton.disabled=!active||count>=REFERRAL_LIMIT;
+      copyButton.disabled=!active||count>=REFERRAL_LIMIT||!user.emailVerified;
       if(!active)showReferralStatus('The event is over; this invite link will not add referrals.');
+      else if(!user.emailVerified)showReferralStatus('Verify your email before referrals can count. Use the Verify email button above.');
       else if(count>=REFERRAL_LIMIT)showReferralStatus('Your 3 referral slots are complete.');
-      else showReferralStatus('A friend counts once after creating a new account with your invite link.');
+      else showReferralStatus('A friend counts once after creating a verified new account with your invite link.');
       const timeLeft=document.getElementById('referralTimeLeft');
       const updateTime=()=>{
         const remaining=endAt-Date.now();
@@ -214,6 +223,7 @@
       }
       try{
         await ensureReferralProfile(user);
+        if(user.emailVerified&&referralSource){try{await recordNewReferral(user)}catch(error){console.error('Referral processing failed:',error.code||error.message)}}
         if(!firebaseAuth.currentUser||firebaseAuth.currentUser.uid!==user.uid)return;
         if(referralUnsubscribe)referralUnsubscribe();
         const profileRef=firestoreApi.doc(firestoreDb,'referralProfiles',user.uid);
@@ -252,11 +262,13 @@
           const result=await firebaseApi.createUserWithEmailAndPassword(firebaseAuth,email,password);
           const displayName=document.getElementById('fullName').value.trim();
           if(displayName)await firebaseApi.updateProfile(result.user,{displayName});
+          const verificationSent=await sendVerificationEmail(result.user,false);
           try{await ensureReferralProfile(result.user);await recordNewReferral(result.user)}catch(referralError){console.error('Referral setup failed:',referralError.code||referralError.message)}
-          showAuthNotice('Your account is ready. You are signed in.');
+          showAuthNotice(verificationSent?`Account created. We sent a verification link to ${email}. Verify it before referrals can count.`:'Account created, but we could not send the verification email. Choose Resend verification email to try again.',!verificationSent);
         }else{
-          await firebaseApi.signInWithEmailAndPassword(firebaseAuth,email,password);
-          showAuthNotice('Welcome back. You are signed in.');
+          const result=await firebaseApi.signInWithEmailAndPassword(firebaseAuth,email,password);
+          if(result.user.emailVerified)showAuthNotice('Welcome back. Your email is verified.');
+          else showAuthNotice('Your email is not verified yet. Choose Resend verification email, then open the link we send.');
         }
       }catch(error){showAuthNotice(authErrorMessage(error),true)}
     });
@@ -277,6 +289,23 @@
       try{await firebaseApi.sendPasswordResetEmail(firebaseAuth,email);showAuthNotice('Password reset instructions have been sent if an account exists for that email.')}
       catch(error){showAuthNotice(authErrorMessage(error),true)}
     });
+    async function sendVerificationEmail(user,showNotice=true){
+      if(!user||!firebaseApi){if(showNotice)showAuthNotice('Sign in with your email account before requesting verification.',true);return false}
+      if(user.emailVerified){if(showNotice)showAuthNotice('Your email is already verified.');return true}
+      try{
+        await firebaseApi.sendEmailVerification(user,{url:window.location.href,handleCodeInApp:false});
+        const status=document.getElementById('verificationStatus');
+        status.textContent='Email sent';status.style.display='inline';
+        window.setTimeout(()=>{status.textContent='';status.style.display='none'},7000);
+        if(showNotice)showAuthNotice(`Verification email sent to ${user.email}. Check your inbox and spam folder.`);
+        return true;
+      }catch(error){
+        if(showNotice)showAuthNotice('We could not send the verification email. Wait a moment and try again.',true);
+        return false;
+      }
+    }
+    document.getElementById('resendVerification').addEventListener('click',()=>void sendVerificationEmail(firebaseAuth&&firebaseAuth.currentUser));
+    document.getElementById('verifyEmailNav').addEventListener('click',()=>void sendVerificationEmail(firebaseAuth&&firebaseAuth.currentUser,false));
     document.getElementById('signOutNav').addEventListener('click',async()=>{if(firebaseAuth)try{await firebaseApi.signOut(firebaseAuth)}catch(error){console.error('Sign out failed:',error.code||error.message)}});
     document.getElementById('searchForm').addEventListener('submit',e=>{e.preventDefault();document.getElementById('cars').scrollIntoView({behavior:'smooth'});document.querySelector('.section-kicker').textContent='Available rides';});
     const today=new Date();const dateString=d=>{const t=new Date(d.getTime()-d.getTimezoneOffset()*60000);return t.toISOString().slice(0,10)};const tomorrow=new Date(today);tomorrow.setDate(today.getDate()+1);const after=new Date(today);after.setDate(today.getDate()+2);document.getElementById('pickup').value=dateString(tomorrow);document.getElementById('dropoff').value=dateString(after);document.getElementById('pickup').min=dateString(today);document.getElementById('dropoff').min=dateString(tomorrow);
