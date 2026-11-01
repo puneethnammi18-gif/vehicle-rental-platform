@@ -9,10 +9,6 @@ service cloud.firestore {
       return signedIn() && request.auth.token.email_verified == true;
     }
 
-    function referralProfilePath(userId) {
-      return /databases/$(database)/documents/referralProfiles/$(userId);
-    }
-
     function userProfilePath(userId) {
       return /databases/$(database)/documents/userProfiles/$(userId);
     }
@@ -80,6 +76,14 @@ service cloud.firestore {
         && get(vehiclePath(data.vehicleId)).data.name == data.vehicleName
         && get(vehiclePath(data.vehicleId)).data.pickupPoint == data.pickupPoint
         && get(vehiclePath(data.vehicleId)).data.city == data.city;
+    }
+
+    function profilePath(userId) {
+      return /databases/$(database)/documents/referralProfiles/$(userId);
+    }
+
+    function referralPath(userId) {
+      return /databases/$(database)/documents/referrals/$(userId);
     }
 
     match /userProfiles/{userId} {
@@ -173,9 +177,8 @@ service cloud.firestore {
         && request.resource.data.referralCount == resource.data.referralCount + 1
         && request.resource.data.referralCount <= 3
         && request.time < resource.data.createdAt + duration.value(45, 'd')
-        && get(referralProfilePath(userId)).data.referralCount == resource.data.referralCount
-        && getAfter(/databases/$(database)/documents/referrals/$(request.auth.uid)).data.referrerUid == userId
-        && getAfter(/databases/$(database)/documents/referrals/$(request.auth.uid)).data.createdAt == request.time;
+        && getAfter(referralPath(request.auth.uid)).data.referrerUid == userId
+        && getAfter(referralPath(request.auth.uid)).data.createdAt == request.time;
 
       allow delete: if false;
     }
@@ -198,12 +201,12 @@ service cloud.firestore {
         && request.resource.data.referrerUid is string
         && request.resource.data.referrerUid != request.auth.uid
         && request.resource.data.createdAt == request.time
-        && exists(referralProfilePath(request.resource.data.referrerUid))
-        && request.time < get(referralProfilePath(request.resource.data.referrerUid)).data.createdAt
+        && exists(profilePath(request.resource.data.referrerUid))
+        && request.time < get(profilePath(request.resource.data.referrerUid)).data.createdAt
           + duration.value(45, 'd')
-        && get(referralProfilePath(request.resource.data.referrerUid)).data.referralCount < 3
-        && getAfter(referralProfilePath(request.resource.data.referrerUid)).data.referralCount
-          == get(referralProfilePath(request.resource.data.referrerUid)).data.referralCount + 1;
+        && get(profilePath(request.resource.data.referrerUid)).data.referralCount < 3
+        && getAfter(profilePath(request.resource.data.referrerUid)).data.referralCount
+          == get(profilePath(request.resource.data.referrerUid)).data.referralCount + 1;
 
       allow update, delete: if false;
     }
