@@ -164,6 +164,7 @@
         const app=appSdk.initializeApp(config);
         firebaseAuth=authSdk.getAuth(app);firebaseApi=authSdk;
         firestoreApi=storeSdk;firestoreDb=storeSdk.getFirestore(app);
+        listenToMarketplace();
         authSdk.onAuthStateChanged(firebaseAuth,async user=>{
           if(user&&!user.emailVerified&&user.providerData.some(info=>info.providerId==='password')){
             try{await authSdk.reload(user);if(user.emailVerified)await authSdk.getIdToken(user,true)}catch(error){console.warn('Could not refresh email verification status:',error.code||error.message)}
@@ -722,7 +723,6 @@
           const requestsQuery=firestoreApi.query(firestoreApi.collection(firestoreDb,'bookingRequests'),firestoreApi.where('customerUid','==',user.uid));
           customerBookingsUnsubscribe=firestoreApi.onSnapshot(requestsQuery,snapshot=>{customerBookings=snapshot.docs.map(doc=>Object.assign({id:doc.id},doc.data())).sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));renderCustomerBookings()},error=>{document.getElementById('customerBookingList').innerHTML='<p>Could not load requests. Check Firestore permissions.</p>'})
         }
-        if(user.emailVerified)void refreshReferralPanel(user);else hideReferralPanel()
       }catch(error){console.warn('Could not load account profile:',error.code||error.message);providerPanel.style.display='none';customerPanel.style.display='none'}
     }
     async function setVehicleStatus(vehicleId,status){
