@@ -32,11 +32,11 @@ service cloud.firestore {
     function validVehicle(data) {
       return data.keys().hasAll([
           'ownerUid', 'name', 'kind', 'year', 'pricePerDay', 'city',
-          'pickupPoint', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
+          'pickupPoint', 'latitude', 'longitude', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
         ])
         && data.keys().hasOnly([
           'ownerUid', 'name', 'kind', 'year', 'pricePerDay', 'city',
-          'pickupPoint', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
+          'pickupPoint', 'latitude', 'longitude', 'imageUrl', 'features', 'providerName', 'status', 'createdAt'
         ])
         && data.ownerUid == request.auth.uid
         && data.name is string && data.name.size() > 0 && data.name.size() <= 70
@@ -45,6 +45,8 @@ service cloud.firestore {
         && data.pricePerDay is int && data.pricePerDay > 0 && data.pricePerDay <= 100000
         && data.city is string && data.city.size() > 0 && data.city.size() <= 80
         && data.pickupPoint is string && data.pickupPoint.size() > 0 && data.pickupPoint.size() <= 160
+        && data.latitude is number && data.latitude >= -90 && data.latitude <= 90
+        && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
         && data.imageUrl is string && data.imageUrl.size() <= 1000
         && (data.imageUrl == '' || data.imageUrl.matches('^https://.*'))
         && data.features is list && data.features.size() <= 8
