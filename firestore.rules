@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(userId) {
+      return /databases/$(database)/documents/referralProfiles/$(userId);
+    }
+
+    function referralPath(userId) {
+      return /databases/$(database)/documents/referrals/$(userId);
+    }
+
+    match /referralProfiles/{userId} {
+      // Profiles contain only a server-created timestamp and a referral count.
+      // Authenticated clients can read one known profile but cannot list profiles.
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['createdAt', 'referralCount'])
+        && request.resource.data.keys().hasOnly(['createdAt', 'referralCount'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.referralCount == 0;
+
+      // A referral count can increase only in the same transaction that adds
+      // this authenticated invitee's one-time referral record.
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referralCount'])
+        && request.resource.data.referralCount == resource.data.referralCount + 1
+        && request.resource.data.referralCount <= 3
+        && request.time < resource.data.createdAt + duration.value(45, 'd')
+        && getAfter(referralPath(request.auth.uid)).data.referrerUid == userId
+        && getAfter(referralPath(request.auth.uid)).data.createdAt == request.time;
+
+      allow delete: if false;
+    }
+
+    match /referrals/{referredUserId} {
+      // Invitees can see their own referral record; referrers can see only
+      // records that contribute to their own count.
+      allow get: if signedIn()
+        && (request.auth.uid == referredUserId
+            || resource.data.referrerUid == request.auth.uid);
+      allow list: if signedIn()
+        && resource.data.referrerUid == request.auth.uid;
+
+      // Each authenticated account can be referred only once. The count update
+      // must happen atomically, within the referrer's 45-day window, and below 3.
+      allow create: if signedIn()
+        && request.auth.uid == referredUserId
+        && request.resource.data.keys().hasAll(['referrerUid', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['referrerUid', 'createdAt'])
+        && request.resource.data.referrerUid is string
+        && request.resource.data.referrerUid != request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && exists(profilePath(request.resource.data.referrerUid))
+        && request.time < get(profilePath(request.resource.data.referrerUid)).data.createdAt
+          + duration.value(45, 'd')
+        && get(profilePath(request.resource.data.referrerUid)).data.referralCount < 3
+        && getAfter(profilePath(request.resource.data.referrerUid)).data.referralCount
+          == get(profilePath(request.resource.data.referrerUid)).data.referralCount + 1;
+
+      allow update, delete: if false;
+    }
+  }
+}
